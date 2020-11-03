@@ -39,6 +39,8 @@ export class Airplane extends Vehicle implements IControllable, IWorldEntity
 			chassisConnectionPointLocal: new CANNON.Vec3(),
 		});
 
+
+		this.collision.angularDamping = 0.8;
 		this.readAirplaneData(gltf);
 
 		this.collision.preStep = (body: CANNON.Body) => { this.physicsPreStep(body, this); };
@@ -180,130 +182,70 @@ export class Airplane extends Vehicle implements IControllable, IWorldEntity
 
 	public physicsPreStep(body: CANNON.Body, plane: Airplane): void
 	{
-		let quat = Utils.threeQuat(body.quaternion);
-		let right = new THREE.Vector3(1, 0, 0).applyQuaternion(quat);
-		let up = new THREE.Vector3(0, 1, 0).applyQuaternion(quat);
-		let forward = new THREE.Vector3(0, 0, 1).applyQuaternion(quat);
+		let mid = new CANNON.Vec3(0, 0, 0);
 		
-		const velocity = new CANNON.Vec3().copy(this.collision.velocity);
-		let velLength1 = body.velocity.length();
-		const currentSpeed = velocity.dot(Utils.cannonVector(forward));
-
-		// Rotation controls influence
-		let flightModeInfluence = currentSpeed / 10;
-		flightModeInfluence = THREE.MathUtils.clamp(flightModeInfluence, 0, 1);
-
-		let lowerMassInfluence = currentSpeed / 10;
-		lowerMassInfluence = THREE.MathUtils.clamp(lowerMassInfluence, 0, 1);
-		this.collision.mass = 50 * (1 - (lowerMassInfluence * 0.6));
-
-		// Rotation stabilization
-		let lookVelocity = body.velocity.clone();
-		lookVelocity.normalize();
-		let rotStabVelocity = new THREE.Quaternion().setFromUnitVectors(forward, Utils.threeVector(lookVelocity));
-		rotStabVelocity.x *= 0.3;
-		rotStabVelocity.y *= 0.3;
-		rotStabVelocity.z *= 0.3;
-		rotStabVelocity.w *= 0.3;
-		let rotStabEuler = new THREE.Euler().setFromQuaternion(rotStabVelocity);
-
-		let rotStabInfluence = THREE.MathUtils.clamp(velLength1 - 1, 0, 0.1);  // Only with speed greater than 1 UPS
-		rotStabInfluence *= (this.rayCastVehicle.numWheelsOnGround > 0 && currentSpeed < 0 ? 0 : 1);    // Reverse fix
-		let loopFix = (this.actions.throttle.isPressed && currentSpeed > 0 ? 0 : 1);
-		
-		body.angularVelocity.x += rotStabEuler.x * rotStabInfluence * loopFix;
-		body.angularVelocity.y += rotStabEuler.y * rotStabInfluence;
-		body.angularVelocity.z += rotStabEuler.z * rotStabInfluence * loopFix;
+		const velocity = body.quaternion.inverse().vmult(body.velocity);
+		const currentSpeed = velocity.z;
 
 		// Pitch
 		if (plane.actions.pitchUp.isPressed)
 		{
-			body.angularVelocity.x -= right.x * 0.04 * flightModeInfluence * this.enginePower;
-			body.angularVelocity.y -= right.y * 0.04 * flightModeInfluence * this.enginePower;
-			body.angularVelocity.z -= right.z * 0.04 * flightModeInfluence * this.enginePower;
+			body.applyLocalForce(new CANNON.Vec3(0, 5 * -currentSpeed, 0), new CANNON.Vec3(0, 0, -1));
 		}
 		if (plane.actions.pitchDown.isPressed)
 		{
-			body.angularVelocity.x += right.x * 0.04 * flightModeInfluence * this.enginePower;
-			body.angularVelocity.y += right.y * 0.04 * flightModeInfluence * this.enginePower;
-			body.angularVelocity.z += right.z * 0.04 * flightModeInfluence * this.enginePower;
+			body.applyLocalForce(new CANNON.Vec3(0, 5 * currentSpeed, 0), new CANNON.Vec3(0, 0, -1));
 		}
 
 		// Yaw
 		if (plane.actions.yawLeft.isPressed)
 		{
-			body.angularVelocity.x += up.x * 0.02 * flightModeInfluence * this.enginePower;
-			body.angularVelocity.y += up.y * 0.02 * flightModeInfluence * this.enginePower;
-			body.angularVelocity.z += up.z * 0.02 * flightModeInfluence * this.enginePower;
+			body.applyLocalForce(new CANNON.Vec3(5 * -currentSpeed, 0, 0), new CANNON.Vec3(0, 0, -1));
 		}
 		if (plane.actions.yawRight.isPressed)
 		{
-			body.angularVelocity.x -= up.x * 0.02 * flightModeInfluence * this.enginePower;
-			body.angularVelocity.y -= up.y * 0.02 * flightModeInfluence * this.enginePower;
-			body.angularVelocity.z -= up.z * 0.02 * flightModeInfluence * this.enginePower;
+			body.applyLocalForce(new CANNON.Vec3(5 * currentSpeed, 0, 0), new CANNON.Vec3(0, 0, -1));
 		}
 
 		// Roll
 		if (plane.actions.rollLeft.isPressed)
 		{
-			body.angularVelocity.x -= forward.x * 0.055 * flightModeInfluence * this.enginePower;
-			body.angularVelocity.y -= forward.y * 0.055 * flightModeInfluence * this.enginePower;
-			body.angularVelocity.z -= forward.z * 0.055 * flightModeInfluence * this.enginePower;
+			body.applyLocalForce(new CANNON.Vec3(0, 5 * -currentSpeed, 0), new CANNON.Vec3(1, 0, 0));
+			body.applyLocalForce(new CANNON.Vec3(0, 5 * currentSpeed, 0), new CANNON.Vec3(-1, 0, 0));
 		}
 		if (plane.actions.rollRight.isPressed)
 		{
-			body.angularVelocity.x += forward.x * 0.055 * flightModeInfluence * this.enginePower;
-			body.angularVelocity.y += forward.y * 0.055 * flightModeInfluence * this.enginePower;
-			body.angularVelocity.z += forward.z * 0.055 * flightModeInfluence * this.enginePower;
+			body.applyLocalForce(new CANNON.Vec3(0, 5 * currentSpeed, 0), new CANNON.Vec3(1, 0, 0));
+			body.applyLocalForce(new CANNON.Vec3(0, 5 * -currentSpeed, 0), new CANNON.Vec3(-1, 0, 0));
 		}
 
 		// Thrust
-		let speedModifier = 0.02;
+		let speedModifier = 0.03;
 		if (plane.actions.throttle.isPressed && !plane.actions.brake.isPressed)
 		{
-			speedModifier = 0.06;
+			speedModifier = 0.12;
 		}
 		else if (!plane.actions.throttle.isPressed && plane.actions.brake.isPressed)
 		{
-			speedModifier = -0.05;
+			speedModifier = 0;
 		}
 		else if (this.rayCastVehicle.numWheelsOnGround > 0)
 		{
 			speedModifier = 0;
 		}
 
-		body.velocity.x += (velLength1 * this.lastDrag + speedModifier) * forward.x * this.enginePower;
-		body.velocity.y += (velLength1 * this.lastDrag + speedModifier) * forward.y * this.enginePower;
-		body.velocity.z += (velLength1 * this.lastDrag + speedModifier) * forward.z * this.enginePower;
-
-		// document.getElementById('car-debug').innerHTML = 'Speed: ' + Utils.round(currentSpeed, 2) + '';
-		// document.getElementById('car-debug').innerHTML += '<br>' + 'Power output: ' + Utils.round(velLength1 * this.lastDrag, 2) + '';
-
 		// Drag
-		let velLength2 = body.velocity.length();
-		const drag = Math.pow(velLength2, 1) * 0.003 * this.enginePower;
-		body.velocity.x -= body.velocity.x * drag;
-		body.velocity.y -= body.velocity.y * drag;
-		body.velocity.z -= body.velocity.z * drag;
-		this.lastDrag = drag;
+		let drag = new CANNON.Vec3(velocity.x * Math.abs(velocity.x) * -20,
+					   velocity.y * Math.abs(velocity.y) * -100,
+					   velocity.z * Math.abs(velocity.z) * -1);
+		body.applyLocalForce(drag, new CANNON.Vec3(0, 0, -0.02));
 
 		// Lift
-		let lift = Math.pow(velLength2, 1) * 0.005 * this.enginePower;
-		lift = THREE.MathUtils.clamp(lift, 0, 0.05);
-		body.velocity.x += up.x * lift;
-		body.velocity.y += up.y * lift;
-		body.velocity.z += up.z * lift;
+		let lift = currentSpeed * Math.abs(currentSpeed) * 1.5;
+		body.applyLocalForce(new CANNON.Vec3(0, lift, 0), mid);
 
-		// Gravity
-		// body.velocity.y -= 0.1;
-
-		// document.getElementById('car-debug').innerHTML += '<br>' + 'Drag: ' + Utils.round(drag, 3) + '';
-		// document.getElementById('car-debug').innerHTML += '<br>' + 'Lift: ' + Utils.round(lift, 3) + '';
-
-		// Angular damping
-		body.angularVelocity.x = THREE.MathUtils.lerp(body.angularVelocity.x, body.angularVelocity.x * 0.98, flightModeInfluence);
-		body.angularVelocity.y = THREE.MathUtils.lerp(body.angularVelocity.y, body.angularVelocity.y * 0.98, flightModeInfluence);
-		body.angularVelocity.z = THREE.MathUtils.lerp(body.angularVelocity.z, body.angularVelocity.z * 0.98, flightModeInfluence);
+		// Thrust
+		body.applyLocalForce(new CANNON.Vec3(0, 0, 5000 * speedModifier * this.enginePower), new CANNON.Vec3(0, 0, 2));
 	}
 
 	public onInputChange(): void
