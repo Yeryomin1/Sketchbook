@@ -194,10 +194,12 @@ export abstract class Vehicle extends THREE.Object3D implements IWorldEntity
 		if (value)
 		{
 			this.world.cameraOperator.setRadius(0, true);
+			this.world.cameraOperator.followMode = true;
 		}
 		else
 		{
 			this.world.cameraOperator.setRadius(3, true);
+			this.world.cameraOperator.followMode = false;
 		}
 	}
 
@@ -266,6 +268,7 @@ export abstract class Vehicle extends THREE.Object3D implements IWorldEntity
 			let temp = new THREE.Vector3().copy(this.camera.position);
 			temp.applyQuaternion(this.quaternion);
 			this.world.cameraOperator.target.copy(temp.add(this.position));
+			this.world.cameraOperator.rotation.copy(this.rotation);
 		}
 		else
 		{

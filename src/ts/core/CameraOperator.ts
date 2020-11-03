@@ -14,6 +14,7 @@ export class CameraOperator implements IInputReceiver, IUpdatable
 	public world: World;
 	public camera: THREE.Camera;
 	public target: THREE.Vector3;
+	public rotation: THREE.Euler;
 	public sensitivity: THREE.Vector2;
 	public radius: number = 1;
 	public theta: number;
@@ -30,7 +31,7 @@ export class CameraOperator implements IInputReceiver, IUpdatable
 	public forwardVelocity: number = 0;
 	public rightVelocity: number = 0;
 
-	public followMode: boolean = false;
+	public followMode: boolean = true;
 
 	public characterCaller: Character;
 
@@ -39,6 +40,7 @@ export class CameraOperator implements IInputReceiver, IUpdatable
 		this.world = world;
 		this.camera = camera;
 		this.target = new THREE.Vector3();
+		this.rotation = new THREE.Euler();
 		this.sensitivity = new THREE.Vector2(sensitivityX, sensitivityY);
 
 		this.movementSpeed = 0.06;
@@ -90,7 +92,7 @@ export class CameraOperator implements IInputReceiver, IUpdatable
 		if (this.followMode === true)
 		{
 			this.camera.position.y = THREE.MathUtils.clamp(this.camera.position.y, this.target.y, Number.POSITIVE_INFINITY);
-			this.camera.lookAt(this.target);
+			this.camera.rotation.set(this.rotation.x, 3.141592 + this.rotation.y, -this.rotation.z);
 			let newPos = this.target.clone().add(new THREE.Vector3().subVectors(this.camera.position, this.target).normalize().multiplyScalar(this.targetRadius));
 			this.camera.position.x = newPos.x;
 			this.camera.position.y = newPos.y;
