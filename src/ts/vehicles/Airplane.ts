@@ -245,7 +245,7 @@ export class Airplane extends Vehicle implements IControllable, IWorldEntity
 		body.applyLocalForce(new CANNON.Vec3(0, lift, 0), mid);
 
 		// Thrust
-		body.applyLocalForce(new CANNON.Vec3(0, 0, 5000 * speedModifier * this.enginePower), new CANNON.Vec3(0, 0, 2));
+		body.applyLocalForce(new CANNON.Vec3(0, 0, 3000 * speedModifier * this.enginePower), new CANNON.Vec3(0, 0, 2));
 	}
 
 	public onInputChange(): void
