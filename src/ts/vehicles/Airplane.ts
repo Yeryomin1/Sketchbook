@@ -225,13 +225,12 @@ export class Airplane extends Vehicle implements IControllable, IWorldEntity
 		{
 			speedModifier = 0.12;
 		}
-		else if (!plane.actions.throttle.isPressed && plane.actions.brake.isPressed)
+		else
 		{
-			speedModifier = 0;
-		}
-		else if (this.rayCastVehicle.numWheelsOnGround > 0)
-		{
-			speedModifier = 0;
+			if (!plane.actions.throttle.isPressed && plane.actions.brake.isPressed) {
+				speedModifier = 0;
+			if (this.rayCastVehicle.numWheelsOnGround > 0)
+				speedModifier -= 0.03;
 		}
 
 		// Drag
