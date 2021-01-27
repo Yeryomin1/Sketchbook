@@ -9,8 +9,7 @@ import { SpringSimulator } from '../physics/spring_simulation/SpringSimulator';
 import * as Utils from '../core/FunctionLibrary';
 import { EntityType } from '../enums/EntityType';
 
-export class Airplane extends Vehicle implements IControllable, IWorldEntity
-{
+export class Airplane extends Vehicle implements IControllable, IWorldEntity {
 	public entityType: EntityType = EntityType.Airplane;
 	public rotor: THREE.Object3D;
 	public leftAileron: THREE.Object3D;
@@ -18,7 +17,7 @@ export class Airplane extends Vehicle implements IControllable, IWorldEntity
 	public elevators: THREE.Object3D[] = [];
 	public rudder: THREE.Object3D;
 
-	private steeringSimulator: SpringSimulator; 
+	private steeringSimulator: SpringSimulator;
 	private aileronSimulator: SpringSimulator;
 	private elevatorSimulator: SpringSimulator;
 	private rudderSimulator: SpringSimulator;
@@ -26,8 +25,7 @@ export class Airplane extends Vehicle implements IControllable, IWorldEntity
 	private enginePower: number = 0;
 	private lastDrag: number = 0;
 
-	constructor(gltf: any)
-	{
+	constructor(gltf: any) {
 		super(gltf, {
 			radius: 0.12,
 			suspensionStiffness: 150,
@@ -60,62 +58,53 @@ export class Airplane extends Vehicle implements IControllable, IWorldEntity
 			'view': new KeyBinding('KeyV'),
 		};
 
-		this.steeringSimulator = new SpringSimulator(60, 10, 0.6); 
+		this.steeringSimulator = new SpringSimulator(60, 10, 0.6);
 		this.aileronSimulator = new SpringSimulator(60, 5, 0.6);
 		this.elevatorSimulator = new SpringSimulator(60, 7, 0.6);
 		this.rudderSimulator = new SpringSimulator(60, 10, 0.6);
 	}
 
-	public noDirectionPressed(): boolean
-	{
-		let result = 
-		!this.actions.throttle.isPressed &&
-		!this.actions.brake.isPressed &&
-		!this.actions.yawLeft.isPressed &&
-		!this.actions.yawRight.isPressed &&
-		!this.actions.rollLeft.isPressed &&
-		!this.actions.rollRight.isPressed;
+	public noDirectionPressed(): boolean {
+		let result =
+			!this.actions.throttle.isPressed &&
+			!this.actions.brake.isPressed &&
+			!this.actions.yawLeft.isPressed &&
+			!this.actions.yawRight.isPressed &&
+			!this.actions.rollLeft.isPressed &&
+			!this.actions.rollRight.isPressed;
 
 		return result;
 	}
 
-	public update(timeStep: number): void
-	{
+	public update(timeStep: number): void {
 		super.update(timeStep);
-		
+
 		// Rotors visuals
-		if (this.controllingCharacter !== undefined)
-		{
+		if (this.controllingCharacter !== undefined) {
 			if (this.enginePower < 1) this.enginePower += timeStep * 0.4;
 			if (this.enginePower > 1) this.enginePower = 1;
 		}
-		else
-		{
+		else {
 			if (this.enginePower > 0) this.enginePower -= timeStep * 0.12;
 			if (this.enginePower < 0) this.enginePower = 0;
 		}
 		this.rotor.rotateX(this.enginePower * timeStep * 60);
 
 		// Steering
-		if (this.rayCastVehicle.numWheelsOnGround > 0)
-		{
+		if (this.rayCastVehicle.numWheelsOnGround > 0) {
 			if ((this.actions.yawLeft.isPressed || this.actions.rollLeft.isPressed)
-				&& !this.actions.yawRight.isPressed && !this.actions.rollRight.isPressed)
-			{
+				&& !this.actions.yawRight.isPressed && !this.actions.rollRight.isPressed) {
 				this.steeringSimulator.target = 0.8;
 			}
 			else if ((this.actions.yawRight.isPressed || this.actions.rollRight.isPressed)
-				&& !this.actions.yawLeft.isPressed && !this.actions.rollLeft.isPressed)
-			{
+				&& !this.actions.yawLeft.isPressed && !this.actions.rollLeft.isPressed) {
 				this.steeringSimulator.target = -0.8;
 			}
-			else
-			{
+			else {
 				this.steeringSimulator.target = 0;
 			}
 		}
-		else
-		{
+		else {
 			this.steeringSimulator.target = 0;
 		}
 		this.steeringSimulator.simulate(timeStep);
@@ -124,44 +113,35 @@ export class Airplane extends Vehicle implements IControllable, IWorldEntity
 		const partsRotationAmount = 0.7;
 
 		// Ailerons
-		if (this.actions.rollLeft.isPressed && !this.actions.rollRight.isPressed)
-		{
+		if (this.actions.rollLeft.isPressed && !this.actions.rollRight.isPressed) {
 			this.aileronSimulator.target = partsRotationAmount;
 		}
-		else if (!this.actions.rollLeft.isPressed && this.actions.rollRight.isPressed)
-		{
+		else if (!this.actions.rollLeft.isPressed && this.actions.rollRight.isPressed) {
 			this.aileronSimulator.target = -partsRotationAmount;
 		}
-		else 
-		{
+		else {
 			this.aileronSimulator.target = 0;
 		}
 
 		// Elevators
-		if (this.actions.pitchUp.isPressed && !this.actions.pitchDown.isPressed)
-		{
+		if (this.actions.pitchUp.isPressed && !this.actions.pitchDown.isPressed) {
 			this.elevatorSimulator.target = partsRotationAmount;
 		}
-		else if (!this.actions.pitchUp.isPressed && this.actions.pitchDown.isPressed)
-		{
+		else if (!this.actions.pitchUp.isPressed && this.actions.pitchDown.isPressed) {
 			this.elevatorSimulator.target = -partsRotationAmount;
 		}
-		else
-		{
+		else {
 			this.elevatorSimulator.target = 0;
 		}
 
 		// Rudder
-		if (this.actions.yawLeft.isPressed && !this.actions.yawRight.isPressed)
-		{
+		if (this.actions.yawLeft.isPressed && !this.actions.yawRight.isPressed) {
 			this.rudderSimulator.target = partsRotationAmount;
 		}
-		else if (!this.actions.yawLeft.isPressed && this.actions.yawRight.isPressed)
-		{
+		else if (!this.actions.yawLeft.isPressed && this.actions.yawRight.isPressed) {
 			this.rudderSimulator.target = -partsRotationAmount;
 		}
-		else 
-		{
+		else {
 			this.rudderSimulator.target = 0;
 		}
 
@@ -173,61 +153,64 @@ export class Airplane extends Vehicle implements IControllable, IWorldEntity
 		// Rotate parts
 		this.leftAileron.rotation.y = this.aileronSimulator.position;
 		this.rightAileron.rotation.y = -this.aileronSimulator.position;
-		this.elevators.forEach((elevator) =>
-		{
+		this.elevators.forEach((elevator) => {
 			elevator.rotation.y = this.elevatorSimulator.position;
 		});
 		this.rudder.rotation.y = this.rudderSimulator.position;
 	}
 
-	public physicsPreStep(body: CANNON.Body, plane: Airplane): void
-	{
+	public physicsPreStep(body: CANNON.Body, plane: Airplane): void {
 		let mid = new CANNON.Vec3(0, 0, 0);
-		
+
 		const velocity = body.quaternion.inverse().vmult(body.velocity);
 		const currentSpeed = velocity.z;
 
+		console.log(currentSpeed);
+
+
 		// Pitch
-		if (plane.actions.pitchUp.isPressed)
-		{
-			body.applyLocalForce(new CANNON.Vec3(0, 5 * -currentSpeed, 0), new CANNON.Vec3(0, 0, -1));
+		body.angularDamping = currentSpeed > 5 ? 0.8 : -0.8;
+
+
+		let normAccelPitch = 1.2 * currentSpeed;
+		let addLiftForce = body.mass * normAccelPitch;
+		if (plane.actions.pitchUp.isPressed) {
+			body.applyLocalForce(new CANNON.Vec3(0, addLiftForce, 0), new CANNON.Vec3(0, 0, 0));
 		}
-		if (plane.actions.pitchDown.isPressed)
-		{
-			body.applyLocalForce(new CANNON.Vec3(0, 5 * currentSpeed, 0), new CANNON.Vec3(0, 0, -1));
+		if (plane.actions.pitchDown.isPressed) {
+			body.applyLocalForce(new CANNON.Vec3(0, -addLiftForce, 0), new CANNON.Vec3(0, 0, 0));
 		}
+
 
 		// Yaw
-		if (plane.actions.yawLeft.isPressed)
-		{
-			body.applyLocalForce(new CANNON.Vec3(5 * -currentSpeed, 0, 0), new CANNON.Vec3(0, 0, -1));
+		let normAccelYaw = 0.6 * currentSpeed;
+		let addSideForce = body.mass * normAccelYaw;
+
+		if (plane.actions.yawLeft.isPressed) {
+			body.applyLocalForce(new CANNON.Vec3(addSideForce, 0, 0), new CANNON.Vec3(0, 0, 0));
 		}
-		if (plane.actions.yawRight.isPressed)
-		{
-			body.applyLocalForce(new CANNON.Vec3(5 * currentSpeed, 0, 0), new CANNON.Vec3(0, 0, -1));
+		if (plane.actions.yawRight.isPressed) {
+			body.applyLocalForce(new CANNON.Vec3(-addSideForce, 0, 0), new CANNON.Vec3(0, 0, 0));
 		}
 
+
 		// Roll
-		if (plane.actions.rollLeft.isPressed)
-		{
-			body.applyLocalForce(new CANNON.Vec3(0, 5 * -currentSpeed, 0), new CANNON.Vec3(1, 0, 0));
-			body.applyLocalForce(new CANNON.Vec3(0, 5 * currentSpeed, 0), new CANNON.Vec3(-1, 0, 0));
+		if (plane.actions.rollLeft.isPressed) {
+			body.applyLocalForce(new CANNON.Vec3(0, 3 * -currentSpeed, 0), new CANNON.Vec3(1, 0, 0));
+			body.applyLocalForce(new CANNON.Vec3(0, 3 * currentSpeed, 0), new CANNON.Vec3(-1, 0, 0));
 		}
-		if (plane.actions.rollRight.isPressed)
-		{
-			body.applyLocalForce(new CANNON.Vec3(0, 5 * currentSpeed, 0), new CANNON.Vec3(1, 0, 0));
-			body.applyLocalForce(new CANNON.Vec3(0, 5 * -currentSpeed, 0), new CANNON.Vec3(-1, 0, 0));
+		if (plane.actions.rollRight.isPressed) {
+			body.applyLocalForce(new CANNON.Vec3(0, 3 * currentSpeed, 0), new CANNON.Vec3(1, 0, 0));
+			body.applyLocalForce(new CANNON.Vec3(0, 3 * -currentSpeed, 0), new CANNON.Vec3(-1, 0, 0));
 		}
 
 		// Thrust
 		let speedModifier = 0.03;
-		if (plane.actions.throttle.isPressed && !plane.actions.brake.isPressed)
-		{
+		if (plane.actions.throttle.isPressed && !plane.actions.brake.isPressed) {
 			speedModifier = 0.12;
 		}
-		else
-		{
-			if (!plane.actions.throttle.isPressed && plane.actions.brake.isPressed) {
+		else {
+			if (!plane.actions.throttle.isPressed && plane.actions.brake.isPressed)
 				speedModifier = 0;
 			if (this.rayCastVehicle.numWheelsOnGround > 0)
 				speedModifier -= 0.03;
@@ -235,8 +218,8 @@ export class Airplane extends Vehicle implements IControllable, IWorldEntity
 
 		// Drag
 		let drag = new CANNON.Vec3(velocity.x * Math.abs(velocity.x) * -20,
-					   velocity.y * Math.abs(velocity.y) * -100,
-					   velocity.z * Math.abs(velocity.z) * -1);
+			velocity.y * Math.abs(velocity.y) * -100,
+			velocity.z * Math.abs(velocity.z) * -1);
 		body.applyLocalForce(drag, new CANNON.Vec3(0, 0, -0.02));
 
 		// Lift
@@ -247,59 +230,44 @@ export class Airplane extends Vehicle implements IControllable, IWorldEntity
 		body.applyLocalForce(new CANNON.Vec3(0, 0, 3000 * speedModifier * this.enginePower), new CANNON.Vec3(0, 0, 2));
 	}
 
-	public onInputChange(): void
-	{
+	public onInputChange(): void {
 		super.onInputChange();
 
 		const brakeForce = 100;
 
-		if (this.actions.exitVehicle.justPressed && this.controllingCharacter !== undefined)
-		{
+		if (this.actions.exitVehicle.justPressed && this.controllingCharacter !== undefined) {
 			this.forceCharacterOut();
 		}
-		if (this.actions.wheelBrake.justPressed)
-		{
+		if (this.actions.wheelBrake.justPressed) {
 			this.setBrake(brakeForce);
 		}
-		if (this.actions.wheelBrake.justReleased)
-		{
+		if (this.actions.wheelBrake.justReleased) {
 			this.setBrake(0);
 		}
-		if (this.actions.view.justPressed)
-		{
+		if (this.actions.view.justPressed) {
 			this.toggleFirstPersonView();
 		}
 	}
 
-	public readAirplaneData(gltf: any): void
-	{
+	public readAirplaneData(gltf: any): void {
 		gltf.scene.traverse((child) => {
-			if (child.hasOwnProperty('userData'))
-			{
-				if (child.userData.hasOwnProperty('data'))
-				{
-					if (child.userData.data === 'rotor')
-					{
+			if (child.hasOwnProperty('userData')) {
+				if (child.userData.hasOwnProperty('data')) {
+					if (child.userData.data === 'rotor') {
 						this.rotor = child;
 					}
-					if (child.userData.data === 'rudder')
-					{
+					if (child.userData.data === 'rudder') {
 						this.rudder = child;
 					}
-					if (child.userData.data === 'elevator')
-					{
+					if (child.userData.data === 'elevator') {
 						this.elevators.push(child);
 					}
-					if (child.userData.data === 'aileron')
-					{
-						if (child.userData.hasOwnProperty('side')) 
-						{
-							if (child.userData.side === 'left')
-							{
+					if (child.userData.data === 'aileron') {
+						if (child.userData.hasOwnProperty('side')) {
+							if (child.userData.side === 'left') {
 								this.leftAileron = child;
 							}
-							else if (child.userData.side === 'right')
-							{
+							else if (child.userData.side === 'right') {
 								this.rightAileron = child;
 							}
 						}
@@ -309,8 +277,7 @@ export class Airplane extends Vehicle implements IControllable, IWorldEntity
 		});
 	}
 
-	public inputReceiverInit(): void
-	{
+	public inputReceiverInit(): void {
 		super.inputReceiverInit();
 
 		this.world.updateControls([
