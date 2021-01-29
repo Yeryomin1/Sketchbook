@@ -23,7 +23,7 @@ export class Airplane extends Vehicle implements IControllable, IWorldEntity {
 	private rudderSimulator: SpringSimulator;
 
 	private enginePower: number = 0;
-	private lastDrag: number = 0;
+	private speedModifier: number = 0;
 
 	constructor(gltf: any) {
 		super(gltf, {
@@ -164,57 +164,44 @@ export class Airplane extends Vehicle implements IControllable, IWorldEntity {
 
 		const velocity = body.quaternion.inverse().vmult(body.velocity);
 		const currentSpeed = velocity.z;
-
-		console.log(currentSpeed);
+		const squareSpeed = currentSpeed * currentSpeed;
 
 
 		// Pitch
 		body.angularDamping = currentSpeed > 5 ? 0.8 : -0.8;
 
-
-		let normAccelPitch = 1.2 * currentSpeed;
-		let addLiftForce = body.mass * normAccelPitch;
+		let addLiftForce = 4 * squareSpeed;
 		if (plane.actions.pitchUp.isPressed) {
-			body.applyLocalForce(new CANNON.Vec3(0, addLiftForce, 0), new CANNON.Vec3(0, 0, 0));
+			let addLiftZPos = this.rayCastVehicle.numWheelsOnGround > 0 ? 0.4 : 0;
+			body.applyLocalForce(new CANNON.Vec3(0, addLiftForce, 0), new CANNON.Vec3(0, 0, addLiftZPos));
 		}
 		if (plane.actions.pitchDown.isPressed) {
-			body.applyLocalForce(new CANNON.Vec3(0, -addLiftForce, 0), new CANNON.Vec3(0, 0, 0));
+			let addLiftZPos = this.rayCastVehicle.numWheelsOnGround > 0 ? 0.4 : 0;
+			body.applyLocalForce(new CANNON.Vec3(0, -addLiftForce, 0), new CANNON.Vec3(0, 0, addLiftZPos));
 		}
 
 
 		// Yaw
-		let normAccelYaw = 0.6 * currentSpeed;
-		let addSideForce = body.mass * normAccelYaw;
+		let addSideForce = 2 * squareSpeed;
 
 		if (plane.actions.yawLeft.isPressed) {
-			body.applyLocalForce(new CANNON.Vec3(addSideForce, 0, 0), new CANNON.Vec3(0, 0, 0));
+			body.applyLocalForce(new CANNON.Vec3(addSideForce, 0, 0), mid);
 		}
 		if (plane.actions.yawRight.isPressed) {
-			body.applyLocalForce(new CANNON.Vec3(-addSideForce, 0, 0), new CANNON.Vec3(0, 0, 0));
+			body.applyLocalForce(new CANNON.Vec3(-addSideForce, 0, 0), mid);
 		}
-
 
 		// Roll
 		if (plane.actions.rollLeft.isPressed) {
-			body.applyLocalForce(new CANNON.Vec3(0, 3 * -currentSpeed, 0), new CANNON.Vec3(1, 0, 0));
-			body.applyLocalForce(new CANNON.Vec3(0, 3 * currentSpeed, 0), new CANNON.Vec3(-1, 0, 0));
+			body.applyLocalForce(new CANNON.Vec3(0, -0.15 * squareSpeed, 0), new CANNON.Vec3(1, 0, 0));
+			body.applyLocalForce(new CANNON.Vec3(0, 0.15 * squareSpeed, 0), new CANNON.Vec3(-1, 0, 0));
 		}
 		if (plane.actions.rollRight.isPressed) {
-			body.applyLocalForce(new CANNON.Vec3(0, 3 * currentSpeed, 0), new CANNON.Vec3(1, 0, 0));
-			body.applyLocalForce(new CANNON.Vec3(0, 3 * -currentSpeed, 0), new CANNON.Vec3(-1, 0, 0));
+			body.applyLocalForce(new CANNON.Vec3(0, 0.15 * squareSpeed, 0), new CANNON.Vec3(1, 0, 0));
+			body.applyLocalForce(new CANNON.Vec3(0, -0.15 * squareSpeed, 0), new CANNON.Vec3(-1, 0, 0));
 		}
 
-		// Thrust
-		let speedModifier = 0.03;
-		if (plane.actions.throttle.isPressed && !plane.actions.brake.isPressed) {
-			speedModifier = 0.12;
-		}
-		else {
-			if (!plane.actions.throttle.isPressed && plane.actions.brake.isPressed)
-				speedModifier = 0;
-			if (this.rayCastVehicle.numWheelsOnGround > 0)
-				speedModifier -= 0.03;
-		}
+
 
 		// Drag
 		let drag = new CANNON.Vec3(velocity.x * Math.abs(velocity.x) * -20,
@@ -227,7 +214,9 @@ export class Airplane extends Vehicle implements IControllable, IWorldEntity {
 		body.applyLocalForce(new CANNON.Vec3(0, lift, 0), mid);
 
 		// Thrust
-		body.applyLocalForce(new CANNON.Vec3(0, 0, 3000 * speedModifier * this.enginePower), new CANNON.Vec3(0, 0, 2));
+		if (plane.actions.brake.isPressed && this.speedModifier >= 0.0004) this.speedModifier -= 0.0004;
+		if (plane.actions.throttle.isPressed && this.speedModifier < 0.2) this.speedModifier += 0.0001;
+		body.applyLocalForce(new CANNON.Vec3(0, 0, 3000 * this.speedModifier * this.enginePower), new CANNON.Vec3(0, 0, 2));
 	}
 
 	public onInputChange(): void {
