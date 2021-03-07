@@ -23,7 +23,7 @@ export class Airplane extends Vehicle implements IControllable, IWorldEntity {
 	private rudderSimulator: SpringSimulator;
 
 	private enginePower: number = 0;
-	private speedModifier: number = 0;
+	private lastDrag: number = 0;
 
 	constructor(gltf: any) {
 		super(gltf, {
@@ -160,63 +160,101 @@ export class Airplane extends Vehicle implements IControllable, IWorldEntity {
 	}
 
 	public physicsPreStep(body: CANNON.Body, plane: Airplane): void {
-		let mid = new CANNON.Vec3(0, 0, 0);
+		const alphaMax = 0.35;
+		const wingS = 0.7;
+		const mid = new CANNON.Vec3(0, 0, 0);
 
+		/*
+				local axis direction:
+				Х - left
+				У - up
+				Z - forward
+		*/
+		//local speed
 		const velocity = body.quaternion.inverse().vmult(body.velocity);
-		const currentSpeed = velocity.z;
+		const currentSpeed = velocity.length();
 		const squareSpeed = currentSpeed * currentSpeed;
+		const height = 0;//temporary
+		const dynamicPressure = squareSpeed * 1.225 * Math.pow(Math.E, -0.000141 * height) * 0.5;
+		const beta = velocity.length() > 0.5 ? Math.asin(velocity.x / velocity.length()) : 0;
+		const alpha = velocity.length() > 0.5 ? -Math.asin(velocity.y / (velocity.length() * Math.cos(beta))) : 0;
 
+		//aerodynamic coef
+		let cL = 0;
+		if (Math.abs(alpha) < alphaMax)
+			cL = 4.3 * alpha;
+		else if (alpha <= -alphaMax && alpha > -0.7)
+			cL = -4.3 * alpha - 3.1;
+		else if (alpha >= alphaMax && alpha < 0.7)
+			cL = -4.3 * alpha + 3.1;
+		const liftCoef = cL;
+		const cL0 = 0.5;
+		const dragCoef = Math.abs(alpha) < Math.PI * 0.5 ? 0.35 + alpha * alpha : 0.35 + (Math.abs(alpha) - Math.PI * 0.5) * (Math.abs(alpha) - Math.PI * 0.5);
+
+		let flowDirection = new CANNON.Vec3(0, 0, 0);
+		flowDirection.copy(velocity);
+		flowDirection.normalize();
+		flowDirection.negate(flowDirection);
+
+		//aerodynamic center (focus)
+		const aeroCenterPos = new CANNON.Vec3(0, 0, -0.1);
+		//pressure center
+		const pressCenterPos = new CANNON.Vec3(0, 0, this.rayCastVehicle.numWheelsOnGround > 0 ? 0.2 : 0.05);
 
 		// Pitch
-		body.angularDamping = currentSpeed > 5 ? 0.8 : -0.8;
-
-		let addLiftForce = 4 * squareSpeed;
+		const pitchF = alpha < alphaMax ? squareSpeed * 0.04 : squareSpeed * 0.02;
 		if (plane.actions.pitchUp.isPressed) {
-			let addLiftZPos = this.rayCastVehicle.numWheelsOnGround > 0 ? 0.4 : 0;
-			body.applyLocalForce(new CANNON.Vec3(0, addLiftForce, 0), new CANNON.Vec3(0, 0, addLiftZPos));
+			body.applyLocalForce(new CANNON.Vec3(0, -pitchF, 0), new CANNON.Vec3(0, 0, -1));
 		}
 		if (plane.actions.pitchDown.isPressed) {
-			let addLiftZPos = this.rayCastVehicle.numWheelsOnGround > 0 ? 0.4 : 0;
-			body.applyLocalForce(new CANNON.Vec3(0, -addLiftForce, 0), new CANNON.Vec3(0, 0, addLiftZPos));
+			body.applyLocalForce(new CANNON.Vec3(0, pitchF, 0), new CANNON.Vec3(0, 0, -1));
 		}
-
 
 		// Yaw
-		let addSideForce = 2 * squareSpeed;
-
+		const yawF = beta < alphaMax ? squareSpeed * 0.04 : squareSpeed * 0.02;
 		if (plane.actions.yawLeft.isPressed) {
-			body.applyLocalForce(new CANNON.Vec3(addSideForce, 0, 0), mid);
+			body.applyLocalForce(new CANNON.Vec3(-yawF, 0, 0), new CANNON.Vec3(0, 0, -1));
 		}
 		if (plane.actions.yawRight.isPressed) {
-			body.applyLocalForce(new CANNON.Vec3(-addSideForce, 0, 0), mid);
+			body.applyLocalForce(new CANNON.Vec3(yawF, 0, 0), new CANNON.Vec3(0, 0, -1));
 		}
 
 		// Roll
 		if (plane.actions.rollLeft.isPressed) {
-			body.applyLocalForce(new CANNON.Vec3(0, -0.15 * squareSpeed, 0), new CANNON.Vec3(1, 0, 0));
-			body.applyLocalForce(new CANNON.Vec3(0, 0.15 * squareSpeed, 0), new CANNON.Vec3(-1, 0, 0));
+			body.applyLocalForce(new CANNON.Vec3(0, 3 * -currentSpeed, 0), new CANNON.Vec3(1, 0, 0));
+			body.applyLocalForce(new CANNON.Vec3(0, 3 * currentSpeed, 0), new CANNON.Vec3(-1, 0, 0));
 		}
 		if (plane.actions.rollRight.isPressed) {
-			body.applyLocalForce(new CANNON.Vec3(0, 0.15 * squareSpeed, 0), new CANNON.Vec3(1, 0, 0));
-			body.applyLocalForce(new CANNON.Vec3(0, -0.15 * squareSpeed, 0), new CANNON.Vec3(-1, 0, 0));
+			body.applyLocalForce(new CANNON.Vec3(0, 3 * currentSpeed, 0), new CANNON.Vec3(1, 0, 0));
+			body.applyLocalForce(new CANNON.Vec3(0, 3 * -currentSpeed, 0), new CANNON.Vec3(-1, 0, 0));
 		}
 
-
+		// Thrust
+		let trust = 0;
+		if (plane.actions.throttle.isPressed && !plane.actions.brake.isPressed) {
+			trust = 400 * this.enginePower;
+		}
+		let trustVec = new CANNON.Vec3(0, 0, trust);
+		body.applyLocalForce(trustVec, mid);
 
 		// Drag
-		let drag = new CANNON.Vec3(velocity.x * Math.abs(velocity.x) * -20,
-			velocity.y * Math.abs(velocity.y) * -100,
-			velocity.z * Math.abs(velocity.z) * -1);
-		body.applyLocalForce(drag, new CANNON.Vec3(0, 0, -0.02));
+		let drag = dragCoef * dynamicPressure * wingS;
+		let dragVec = flowDirection.scale(drag);
+		body.applyLocalForce(dragVec, aeroCenterPos);
 
 		// Lift
-		let lift = currentSpeed * Math.abs(currentSpeed) * 1.5;
-		body.applyLocalForce(new CANNON.Vec3(0, lift, 0), mid);
+		let lift0 = cL0 * dynamicPressure * wingS;
+		let lift0Vec = new CANNON.Vec3(0, lift0 * Math.cos(alpha), lift0 * Math.sin(alpha));
+		body.applyLocalForce(lift0Vec, pressCenterPos);
+		let lift = liftCoef * dynamicPressure * wingS;
+		let liftVec = new CANNON.Vec3(0, lift * Math.cos(alpha), lift * Math.sin(alpha));
+		body.applyLocalForce(liftVec, aeroCenterPos);
 
-		// Thrust
-		if (plane.actions.brake.isPressed && this.speedModifier >= 0.0004) this.speedModifier -= 0.0004;
-		if (plane.actions.throttle.isPressed && this.speedModifier < 0.2) this.speedModifier += 0.0001;
-		body.applyLocalForce(new CANNON.Vec3(0, 0, 3000 * this.speedModifier * this.enginePower), new CANNON.Vec3(0, 0, 2));
+		//Side
+		let side = beta * dynamicPressure;
+		let sideVec = new CANNON.Vec3(-side, 0, 0);
+		body.applyLocalForce(sideVec, aeroCenterPos);
+
 	}
 
 	public onInputChange(): void {
