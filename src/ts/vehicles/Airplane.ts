@@ -23,7 +23,6 @@ export class Airplane extends Vehicle implements IControllable, IWorldEntity {
 	private rudderSimulator: SpringSimulator;
 
 	private enginePower: number = 0;
-	private lastDrag: number = 0;
 
 	constructor(gltf: any) {
 		super(gltf, {
@@ -176,9 +175,9 @@ export class Airplane extends Vehicle implements IControllable, IWorldEntity {
 		const squareSpeed = currentSpeed * currentSpeed;
 		const height = 0;//temporary
 		const dynamicPressure = squareSpeed * 1.225 * Math.pow(Math.E, -0.000141 * height) * 0.5;
+		//angles of attack (alpha) and sideslip (beta)
 		const beta = velocity.length() > 0.5 ? Math.asin(velocity.x / velocity.length()) : 0;
 		const alpha = velocity.length() > 0.5 ? -Math.asin(velocity.y / (velocity.length() * Math.cos(beta))) : 0;
-
 		//aerodynamic coef
 		let cL = 0;
 		if (Math.abs(alpha) < alphaMax)
@@ -190,7 +189,7 @@ export class Airplane extends Vehicle implements IControllable, IWorldEntity {
 		const liftCoef = cL;
 		const cL0 = 0.5;
 		const dragCoef = Math.abs(alpha) < Math.PI * 0.5 ? 0.35 + alpha * alpha : 0.35 + (Math.abs(alpha) - Math.PI * 0.5) * (Math.abs(alpha) - Math.PI * 0.5);
-
+		//relative wind direcction
 		let flowDirection = new CANNON.Vec3(0, 0, 0);
 		flowDirection.copy(velocity);
 		flowDirection.normalize();
@@ -201,6 +200,7 @@ export class Airplane extends Vehicle implements IControllable, IWorldEntity {
 		//pressure center
 		const pressCenterPos = new CANNON.Vec3(0, 0, this.rayCastVehicle.numWheelsOnGround > 0 ? 0.2 : 0.05);
 
+		//Controllability
 		// Pitch
 		const pitchF = alpha < alphaMax ? squareSpeed * 0.04 : squareSpeed * 0.02;
 		if (plane.actions.pitchUp.isPressed) {
@@ -209,7 +209,6 @@ export class Airplane extends Vehicle implements IControllable, IWorldEntity {
 		if (plane.actions.pitchDown.isPressed) {
 			body.applyLocalForce(new CANNON.Vec3(0, pitchF, 0), new CANNON.Vec3(0, 0, -1));
 		}
-
 		// Yaw
 		const yawF = beta < alphaMax ? squareSpeed * 0.04 : squareSpeed * 0.02;
 		if (plane.actions.yawLeft.isPressed) {
@@ -218,7 +217,6 @@ export class Airplane extends Vehicle implements IControllable, IWorldEntity {
 		if (plane.actions.yawRight.isPressed) {
 			body.applyLocalForce(new CANNON.Vec3(yawF, 0, 0), new CANNON.Vec3(0, 0, -1));
 		}
-
 		// Roll
 		if (plane.actions.rollLeft.isPressed) {
 			body.applyLocalForce(new CANNON.Vec3(0, 3 * -currentSpeed, 0), new CANNON.Vec3(1, 0, 0));
